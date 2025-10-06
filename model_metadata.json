@@ -1,0 +1,42 @@
+{
+  "classes": [
+    "Adios",
+    "BuenosDias",
+    "Estudiante",
+    "Hija",
+    "Hijo",
+    "Hola",
+    "Hombre",
+    "Mujer",
+    "Tu",
+    "Yo"
+  ],
+  "num_frames": 30,
+  "total_keypoints": 285,
+  "face_keypoints_indices": [
+    0,
+    4,
+    8,
+    10,
+    33,
+    61,
+    199,
+    263,
+    291,
+    362,
+    386,
+    374,
+    152,
+    148,
+    176,
+    78,
+    191,
+    80,
+    13,
+    14
+  ],
+  "input_shape": [
+    30,
+    285
+  ]
+}
