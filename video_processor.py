@@ -8,6 +8,8 @@ import tensorflow as tf
 import mediapipe as mp
 from tensorflow.keras.models import load_model
 
+# 🔥 REMOVER la importación de WebSocket aquí - no es necesaria en este archivo
+
 class VideoProcessor:
     def __init__(self):
         # Cargar modelo y metadata
@@ -197,3 +199,66 @@ class VideoProcessor:
     async def cleanup(self):
         if hasattr(self, 'holistic'):
             self.holistic.close()
+
+    # 🔥 NUEVO: Método para procesar grabaciones (SIN WebSocket en los parámetros)
+    async def process_recording_frames(self, frames_data: list) -> dict:
+        """Procesar una lista completa de frames de una grabación"""
+        try:
+            all_predictions = []
+            
+            print(f"🎬 Procesando {len(frames_data)} frames de grabación...")
+            
+            for i, frame_data in enumerate(frames_data):
+                if i % 10 == 0:  # Log cada 10 frames
+                    print(f"  📊 Procesando frame {i+1}/{len(frames_data)}")
+                
+                # Procesar frame individual
+                result = await self.process_frame(frame_data)
+                
+                if ("current_prediction" in result and 
+                    result["current_prediction"] != "Ninguna" and 
+                    result.get("current_confidence", 0) > 0.1):
+                    
+                    all_predictions.append({
+                        "frame": i,
+                        "prediction": result["current_prediction"],
+                        "confidence": result["current_confidence"]
+                    })
+            
+            print(f"📈 Procesamiento completado. Predicciones encontradas: {len(all_predictions)}")
+            
+            # Analizar resultados agregados
+            if not all_predictions:
+                return {
+                    "detected_word": "Ninguna",
+                    "confidence": 0.0,
+                    "message": "No se detectaron señas claras en la grabación",
+                    "total_frames": len(frames_data)
+                }
+            
+            # Encontrar la predicción más consistente
+            from collections import Counter
+            prediction_counts = Counter([p["prediction"] for p in all_predictions])
+            most_common_prediction, count = prediction_counts.most_common(1)[0]
+            
+            # Calcular confianza promedio
+            confidences = [p["confidence"] for p in all_predictions if p["prediction"] == most_common_prediction]
+            avg_confidence = sum(confidences) / len(confidences)
+            
+            print(f"🎯 RESULTADO: '{most_common_prediction}' (confianza: {avg_confidence:.2f})")
+            print(f"   Frames con detección: {count}/{len(frames_data)}")
+            
+            return {
+                "detected_word": most_common_prediction,
+                "confidence": float(avg_confidence),
+                "total_frames": len(frames_data),
+                "frames_with_detection": len(all_predictions),
+                "prediction_consistency": f"{count}/{len(frames_data)} frames",
+                "all_predictions_count": dict(prediction_counts)
+            }
+            
+        except Exception as e:
+            print(f"❌ Error procesando grabación: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"error": f"Error procesando grabación: {str(e)}"}
