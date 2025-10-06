@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  video-server:
+    build: .
+    container_name: video-server
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
