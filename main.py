@@ -24,15 +24,27 @@ class ConnectionManager:
     def _initialize_processor(self):
         """Inicializar el procesador de video con manejo de errores"""
         try:
+            print("🔄 Intentando inicializar VideoProcessor...")
             self.video_processor = VideoProcessor()
-            if self.video_processor.initialized:
-                print("✅ VideoProcessor inicializado correctamente")
-                print(f"✅ Clases disponibles: {self.video_processor.CLASSES}")
+            
+            if hasattr(self.video_processor, 'initialized'):
+                if self.video_processor.initialized:
+                    print("✅ VideoProcessor inicializado correctamente")
+                    print(f"✅ Clases disponibles: {self.video_processor.CLASSES}")
+                else:
+                    print("❌ VideoProcessor.initialized = False")
+                    # Verificar si hay atributos de error específicos
+                    if hasattr(self.video_processor, 'initialization_error'):
+                        print(f"❌ Error de inicialización: {self.video_processor.initialization_error}")
+                    self.video_processor = None
             else:
-                print("❌ VideoProcessor no se pudo inicializar")
+                print("❌ VideoProcessor no tiene atributo 'initialized'")
                 self.video_processor = None
+                
         except Exception as e:
             print(f"❌ Error crítico inicializando VideoProcessor: {e}")
+            import traceback
+            traceback.print_exc()
             self.video_processor = None
     
     async def connect(self, websocket: WebSocket):
