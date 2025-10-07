@@ -1,5 +1,12 @@
 import os
 
+import logging
+
+# Configuración de logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
 # Configuración de la aplicación
 APP_CONFIG = {
     "app_name": "Sign Language Translator API",
