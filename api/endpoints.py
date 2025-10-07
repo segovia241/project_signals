@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config.settings import logger, APP_CONFIG, CORS_CONFIG
 from models.sign_language_translator import SignLanguageTranslator
 from services.connection_manager import ConnectionManager
-from services.camera_instance import CameraInstance
+from services.camera_instance import VideoProcessor
 
 # Inicializar componentes
 translator = SignLanguageTranslator()
@@ -29,13 +29,14 @@ def create_app() -> FastAPI:
         allow_headers=CORS_CONFIG["allow_headers"],
     )
 
-    # Rutas de la API
+    # Rutas de la API (mantener las mismas que antes)
     @app.get("/")
     async def root():
         return {
             "message": "Sign Language Translator API", 
             "status": "running",
-            "sessions_active": manager.get_active_sessions_count()
+            "sessions_active": manager.get_active_sessions_count(),
+            "mode": "video_streaming"  # Indicar el modo de operación
         }
 
     @app.get("/api/health")
@@ -43,7 +44,8 @@ def create_app() -> FastAPI:
         return {
             "status": "healthy", 
             "model_loaded": translator.model is not None,
-            "timestamp": time.time()
+            "timestamp": time.time(),
+            "mode": "video_streaming"
         }
 
     @app.get("/api/classes")
@@ -55,7 +57,8 @@ def create_app() -> FastAPI:
         return {
             "sessions_active": manager.get_active_sessions_count(),
             "connections_active": len(manager.active_connections),
-            "model_loaded": translator.model is not None
+            "model_loaded": translator.model is not None,
+            "mode": "video_streaming"
         }
 
     @app.post("/api/predict")
@@ -65,10 +68,13 @@ def create_app() -> FastAPI:
         """
         try:
             # Decodificar frame base64
-            frame_base64 = frame_data.get("frame", "").split(",")[1]
+            frame_base64 = frame_data.get("frame", "").split(",")[1] if "," in frame_data.get("frame", "") else frame_data.get("frame", "")
             frame_bytes = base64.b64decode(frame_base64)
             frame_array = np.frombuffer(frame_bytes, dtype=np.uint8)
             frame = cv2.imdecode(frame_array, cv2.IMREAD_COLOR)
+            
+            if frame is None:
+                return {"success": False, "error": "No se pudo decodificar el frame"}
             
             # Procesar frame
             prediction_result, _ = translator.process_frame(frame, [])
@@ -84,50 +90,39 @@ def create_app() -> FastAPI:
             logger.error(f"Error en predicción: {e}")
             return {"success": False, "error": str(e)}
 
-    # WebSocket para transmisión en tiempo real
+    # WebSocket para transmisión en tiempo real - MODIFICADO
     @app.websocket("/ws/{session_id}")
     async def websocket_endpoint(websocket: WebSocket, session_id: str):
         await manager.connect(websocket)
-        camera_instance = CameraInstance(websocket, translator, session_id)
-        manager.camera_instances[session_id] = camera_instance
+        video_processor = VideoProcessor(websocket, translator, session_id)
+        manager.camera_instances[session_id] = video_processor
         
         try:
-            # Esperar mensaje de inicio
-            data = await websocket.receive_json()
-            if data.get("action") == "start_camera":
-                await camera_instance.start_camera()
-            elif data.get("action") == "stop_camera":
-                camera_instance.stop()
-            
-            # Mantener conexión activa
-            while True:
-                data = await websocket.receive_json()
-                if data.get("action") == "stop_camera":
-                    camera_instance.stop()
-                    break
+            # Iniciar procesamiento de video stream
+            await video_processor.process_video_stream()
                     
         except WebSocketDisconnect:
             logger.info(f"WebSocket desconectado para sesión {session_id}")
         except Exception as e:
             logger.error(f"Error en WebSocket: {e}")
         finally:
-            camera_instance.stop()
+            video_processor.stop()
             if session_id in manager.camera_instances:
                 del manager.camera_instances[session_id]
             manager.disconnect(websocket)
 
-    # Endpoint para detener cámara específica
+    # Endpoints de gestión (mantener igual)
     @app.post("/api/camera/{session_id}/stop")
     async def stop_camera(session_id: str):
         if session_id in manager.camera_instances:
             manager.camera_instances[session_id].stop()
             del manager.camera_instances[session_id]
-            return {"success": True, "message": "Cámara detenida"}
+            return {"success": True, "message": "Procesador de video detenido"}
         return {"success": False, "message": "Sesión no encontrada"}
 
     @app.post("/api/camera/stop-all")
     async def stop_all_cameras():
         manager.stop_all_cameras()
-        return {"success": True, "message": "Todas las cámaras detenidas"}
+        return {"success": True, "message": "Todos los procesadores detenidos"}
 
     return app

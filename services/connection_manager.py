@@ -5,7 +5,7 @@ from config.settings import logger
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-        self.camera_instances: Dict[str, 'CameraInstance'] = {}
+        self.camera_instances: Dict[str, 'VideoProcessor'] = {}  # Cambiar a VideoProcessor
     
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -15,7 +15,7 @@ class ConnectionManager:
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-        # Detener cámara si existe para este websocket
+        # Detener procesador si existe para este websocket
         for session_id, instance in list(self.camera_instances.items()):
             if instance.websocket == websocket:
                 instance.stop()

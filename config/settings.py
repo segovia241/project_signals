@@ -1,8 +1,4 @@
-import logging
-
-# Configuración de logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import os
 
 # Configuración de la aplicación
 APP_CONFIG = {
@@ -10,11 +6,11 @@ APP_CONFIG = {
     "version": "1.0.0",
     "host": "0.0.0.0",
     "port": 8000,
-    "reload": True,
+    "reload": False,  # Cambiar a False en producción
     "log_level": "info"
 }
 
-# Configuración CORS (acceso total)
+# Configuración CORS - Agregar tu dominio de Next.js
 CORS_CONFIG = {
     "allow_origins": ["*"],
     "allow_credentials": True,
@@ -30,11 +26,12 @@ MODEL_CONFIG = {
     "min_tracking_confidence": 0.5
 }
 
-# Configuración de cámara
-CAMERA_CONFIG = {
+# Configuración de video - Nueva configuración para streaming
+VIDEO_CONFIG = {
+    "use_camera": False,  # Cambiar a False ya que no tenemos cámara en el servidor
     "camera_index": 0,
     "frame_width": 640,
     "frame_height": 480,
     "fps": 30,
-    "websocket_delay": 0.033  # ~30 FPS
+    "websocket_delay": 0.033
 }
